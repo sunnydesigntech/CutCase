@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a problem with CutCase.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened?
+      placeholder: Describe the incorrect behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the shortest steps that reproduce the problem.
+      placeholder: |
+        1. Open CutCase
+        2. Set dimensions to ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome, Safari, Edge, Firefox
+  - type: textarea
+    id: design
+    attributes:
+      label: Design settings
+      description: Include dimensions, material thickness, kerf, lid/divider settings, or exported SVG metadata when relevant.

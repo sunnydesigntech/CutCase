@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a new CutCase feature or fabrication workflow.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What are you trying to make or improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed feature
+      description: Describe the feature or workflow you want.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Geometry
+        - SVG export
+        - 3D preview
+        - UI
+        - GitHub Pages or docs
+        - Other
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Add links, sketches, screenshots, or fabrication notes if useful.

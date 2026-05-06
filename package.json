@@ -1,7 +1,25 @@
 {
   "name": "cutcase",
   "version": "0.1.0",
+  "description": "Browser-based laser-cut finger-joint box designer with SVG export, 3D preview, lids, dividers, and editable panel features.",
   "private": true,
+  "homepage": "https://sunnydesigntech.github.io/CutCase/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sunnydesigntech/CutCase.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sunnydesigntech/CutCase/issues"
+  },
+  "keywords": [
+    "laser-cutting",
+    "finger-joints",
+    "box-generator",
+    "svg",
+    "threejs",
+    "maker"
+  ],
   "scripts": {
     "build": "npm run bundle:preview && node scripts/build.mjs",
     "bundle:preview": "esbuild preview3d.js --bundle --minify --format=iife --global-name=CutCasePreview3D --outfile=preview3d.bundle.js",

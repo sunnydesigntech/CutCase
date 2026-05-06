@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Live CutCase app
+    url: https://sunnydesigntech.github.io/CutCase/
+    about: Open the hosted app before filing an issue.
