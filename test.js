@@ -27,6 +27,31 @@ assert.strictEqual(byName(openResult.panels, "front").edgeTypes.top, "flat");
 assert.strictEqual(byName(openResult.panels, "bottom").edgeTypes.top, "B");
 assert.strictEqual(openResult.config.effectiveKerf, 0.1);
 
+const addOnResult = box.buildPanels({
+  dimensionBasis: "inside",
+  open: true,
+  lidEnabled: true,
+  lidOverhang: 3,
+  lidLipHeight: 8,
+  lidClearance: 0.3,
+  dividerXCount: 1,
+  dividerYCount: 1,
+  width: 100,
+  height: 60,
+  depth: 80,
+  thickness: 3,
+  fingerSize: 9,
+  kerf: 0.1,
+  fit: "standard"
+});
+
+assert.strictEqual(addOnResult.panels.length, 12, "lid and divider add-ons should add generated parts");
+assert.strictEqual(byName(addOnResult.panels, "lid top").kind, "lid");
+assert.strictEqual(byName(addOnResult.panels, "lid front lip").kind, "lid-lip");
+assert.strictEqual(byName(addOnResult.panels, "divider front-back 1").kind, "divider");
+assert.strictEqual(byName(addOnResult.panels, "divider left-right 1").kind, "divider");
+assert.ok(byName(addOnResult.panels, "divider front-back 1").points.length > 5, "divider should include interlock notch geometry");
+
 const closedResult = box.buildPanels({
   dimensionBasis: "outside",
   open: false,
@@ -69,6 +94,24 @@ const svg = box.buildSvg({
 assert.match(svg, /<svg /);
 assert.match(svg, /finger-box-config/);
 assert.strictEqual((svg.match(/class="cut panel-outline"/g) || []).length, 6);
+
+const addOnSvg = box.buildSvg({
+  dimensionBasis: "inside",
+  open: true,
+  lidEnabled: true,
+  dividerXCount: 1,
+  dividerYCount: 1,
+  width: 100,
+  height: 60,
+  depth: 80,
+  thickness: 3,
+  fingerSize: 9,
+  kerf: 0.1
+}).svg;
+
+assert.match(addOnSvg, /lid top/);
+assert.match(addOnSvg, /divider front-back 1/);
+assert.strictEqual((addOnSvg.match(/class="cut panel-outline"/g) || []).length, 12);
 
 const holeSvgResult = box.buildSvg({
   dimensionBasis: "inside",
@@ -150,6 +193,22 @@ const scene = box.buildSceneData({
 });
 assert.strictEqual(byName(scene.panels, "front").placement.outwardAxis.z, 1);
 assert.strictEqual(byName(scene.panels, "bottom").placement.outwardAxis.y, -1);
+
+const addOnScene = box.buildSceneData({
+  dimensionBasis: "inside",
+  open: true,
+  lidEnabled: true,
+  dividerXCount: 1,
+  dividerYCount: 1,
+  width: 100,
+  height: 60,
+  depth: 80,
+  thickness: 3,
+  fingerSize: 9,
+  kerf: 0.1
+});
+assert.strictEqual(byName(addOnScene.panels, "lid top").placement.outwardAxis.y, 1);
+assert.strictEqual(byName(addOnScene.panels, "divider front-back 1").placement.outwardAxis.x, 1);
 
 const fitTest = box.buildKerfTestSvg({
   dimensionBasis: "inside",

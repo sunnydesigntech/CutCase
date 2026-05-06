@@ -11,6 +11,11 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  function integerOr(value, fallback) {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   function round(n) {
     return Math.round(n * 1000) / 1000;
   }
@@ -77,6 +82,13 @@
     const fingerSize = clamp(requestedFingerSize, range.min, range.max);
     const kerf = Math.max(0, numberOr(raw.kerf, 0));
     const effectiveKerf = kerf * fitScales[fit];
+    const dividerXCount = clamp(integerOr(raw.dividerXCount, 0), 0, 8);
+    const dividerYCount = clamp(integerOr(raw.dividerYCount, 0), 0, 8);
+    const dividerSlots = raw.dividerSlots !== false;
+    const lidEnabled = open && raw.lidEnabled === true;
+    const lidOverhang = clamp(numberOr(raw.lidOverhang, thickness), 0, Math.max(inputDims.width, inputDims.depth));
+    const lidLipHeight = clamp(numberOr(raw.lidLipHeight, Math.max(thickness * 2.5, 8)), thickness, Math.max(thickness, insideDims.height));
+    const lidClearance = clamp(numberOr(raw.lidClearance, Math.max(kerf * 2, 0.3)), 0, Math.min(insideDims.width, insideDims.depth) / 4);
 
     const outsideDims = {
       width: insideDims.width + 2 * thickness,
@@ -91,6 +103,13 @@
       kerf,
       effectiveKerf,
       fit,
+      lidEnabled,
+      lidOverhang,
+      lidLipHeight,
+      lidClearance,
+      dividerXCount,
+      dividerYCount,
+      dividerSlots,
       fingerSize,
       fingerRange: range,
       inputDims,
@@ -192,7 +211,7 @@
     pushPoint(points, end);
   }
 
-  function makePanel(name, width, height, edgeTypes, config) {
+  function makePanel(name, width, height, edgeTypes, config, meta = {}) {
     const points = [{ x: 0, y: 0 }];
     const metrics = { edges: {} };
     const corners = {
@@ -209,12 +228,77 @@
 
     return {
       name,
+      kind: meta.kind || "box",
       baseWidth: width,
       baseHeight: height,
       edgeTypes,
       points,
-      metrics
+      metrics,
+      placement: meta.placement || null
     };
+  }
+
+  function slotIntervals(positions, slotWidth, panelWidth) {
+    return positions.map((position) => ({
+      x1: round(clamp(position - slotWidth / 2, 0, panelWidth)),
+      x2: round(clamp(position + slotWidth / 2, 0, panelWidth))
+    })).filter((slot) => slot.x2 - slot.x1 > EPSILON);
+  }
+
+  function makeDividerPanel(name, width, height, config, topSlotPositions, bottomSlotPositions, placement) {
+    const slotWidth = Math.max(0.2, config.thickness + config.effectiveKerf);
+    const slotDepth = clamp(height / 2 + config.effectiveKerf / 2, config.thickness, Math.max(config.thickness, height - config.thickness * 0.5));
+    const topSlots = config.dividerSlots ? slotIntervals(topSlotPositions, slotWidth, width) : [];
+    const bottomSlots = config.dividerSlots ? slotIntervals(bottomSlotPositions, slotWidth, width) : [];
+    const points = [];
+
+    pushPoint(points, { x: 0, y: 0 });
+    topSlots.forEach((slot) => {
+      pushPoint(points, { x: slot.x1, y: 0 });
+      pushPoint(points, { x: slot.x1, y: slotDepth });
+      pushPoint(points, { x: slot.x2, y: slotDepth });
+      pushPoint(points, { x: slot.x2, y: 0 });
+    });
+    pushPoint(points, { x: width, y: 0 });
+    pushPoint(points, { x: width, y: height });
+
+    bottomSlots.slice().reverse().forEach((slot) => {
+      pushPoint(points, { x: slot.x2, y: height });
+      pushPoint(points, { x: slot.x2, y: height - slotDepth });
+      pushPoint(points, { x: slot.x1, y: height - slotDepth });
+      pushPoint(points, { x: slot.x1, y: height });
+    });
+
+    pushPoint(points, { x: 0, y: height });
+    pushPoint(points, { x: 0, y: 0 });
+
+    return {
+      name,
+      kind: "divider",
+      baseWidth: width,
+      baseHeight: height,
+      edgeTypes: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+      points,
+      metrics: {
+        edges: {
+          top: { type: "flat", length: round(width), segments: 1, actualFingerSize: round(width), margin: 0, tabCount: 0 },
+          right: { type: "flat", length: round(height), segments: 1, actualFingerSize: round(height), margin: 0, tabCount: 0 },
+          bottom: { type: "flat", length: round(width), segments: 1, actualFingerSize: round(width), margin: 0, tabCount: 0 },
+          left: { type: "flat", length: round(height), segments: 1, actualFingerSize: round(height), margin: 0, tabCount: 0 }
+        },
+        slotWidth: round(slotWidth),
+        slotDepth: round(slotDepth)
+      },
+      placement
+    };
+  }
+
+  function dividerPositions(length, count) {
+    const positions = [];
+    for (let i = 1; i <= count; i += 1) {
+      positions.push(round((length * i) / (count + 1)));
+    }
+    return positions;
   }
 
   function getPanelDefinitions(config) {
@@ -262,15 +346,144 @@
       });
     }
 
+    if (config.lidEnabled) {
+      const lidWidth = w + config.thickness * 2 + config.lidOverhang * 2;
+      const lidDepth = d + config.thickness * 2 + config.lidOverhang * 2;
+      const lipWidth = Math.max(config.thickness, w - config.lidClearance * 2);
+      const lipDepth = Math.max(config.thickness, d - config.lidClearance * 2 - config.thickness * 2);
+      const lift = config.thickness * 2.2;
+      definitions.push(
+        {
+          name: "lid top",
+          kind: "lid",
+          width: lidWidth,
+          height: lidDepth,
+          edges: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+          placement: {
+            center: { x: 0, y: h / 2 + config.thickness / 2 + lift, z: 0 },
+            rightAxis: { x: 1, y: 0, z: 0 },
+            upAxis: { x: 0, y: 0, z: 1 },
+            outwardAxis: { x: 0, y: 1, z: 0 }
+          }
+        },
+        {
+          name: "lid front lip",
+          kind: "lid-lip",
+          width: lipWidth,
+          height: config.lidLipHeight,
+          edges: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+          placement: {
+            center: { x: 0, y: h / 2 + lift - config.lidLipHeight / 2, z: d / 2 - config.thickness / 2 - config.lidClearance },
+            rightAxis: { x: 1, y: 0, z: 0 },
+            upAxis: { x: 0, y: 1, z: 0 },
+            outwardAxis: { x: 0, y: 0, z: 1 }
+          }
+        },
+        {
+          name: "lid back lip",
+          kind: "lid-lip",
+          width: lipWidth,
+          height: config.lidLipHeight,
+          edges: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+          placement: {
+            center: { x: 0, y: h / 2 + lift - config.lidLipHeight / 2, z: -d / 2 + config.thickness / 2 + config.lidClearance },
+            rightAxis: { x: -1, y: 0, z: 0 },
+            upAxis: { x: 0, y: 1, z: 0 },
+            outwardAxis: { x: 0, y: 0, z: -1 }
+          }
+        },
+        {
+          name: "lid left lip",
+          kind: "lid-lip",
+          width: lipDepth,
+          height: config.lidLipHeight,
+          edges: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+          placement: {
+            center: { x: -w / 2 + config.thickness / 2 + config.lidClearance, y: h / 2 + lift - config.lidLipHeight / 2, z: 0 },
+            rightAxis: { x: 0, y: 0, z: -1 },
+            upAxis: { x: 0, y: 1, z: 0 },
+            outwardAxis: { x: -1, y: 0, z: 0 }
+          }
+        },
+        {
+          name: "lid right lip",
+          kind: "lid-lip",
+          width: lipDepth,
+          height: config.lidLipHeight,
+          edges: { top: "flat", right: "flat", bottom: "flat", left: "flat" },
+          placement: {
+            center: { x: w / 2 - config.thickness / 2 - config.lidClearance, y: h / 2 + lift - config.lidLipHeight / 2, z: 0 },
+            rightAxis: { x: 0, y: 0, z: 1 },
+            upAxis: { x: 0, y: 1, z: 0 },
+            outwardAxis: { x: 1, y: 0, z: 0 }
+          }
+        }
+      );
+    }
+
+    const dividerXPositions = dividerPositions(w, config.dividerXCount);
+    const dividerYPositions = dividerPositions(d, config.dividerYCount);
+
+    dividerXPositions.forEach((xPosition, index) => {
+      definitions.push({
+        name: `divider front-back ${index + 1}`,
+        kind: "divider-x",
+        width: d,
+        height: h,
+        dividerPanel: true,
+        topSlotPositions: dividerYPositions,
+        bottomSlotPositions: [],
+        placement: {
+          center: { x: -w / 2 + xPosition, y: 0, z: 0 },
+          rightAxis: { x: 0, y: 0, z: 1 },
+          upAxis: { x: 0, y: 1, z: 0 },
+          outwardAxis: { x: 1, y: 0, z: 0 }
+        }
+      });
+    });
+
+    dividerYPositions.forEach((zPosition, index) => {
+      definitions.push({
+        name: `divider left-right ${index + 1}`,
+        kind: "divider-y",
+        width: w,
+        height: h,
+        dividerPanel: true,
+        topSlotPositions: [],
+        bottomSlotPositions: dividerXPositions,
+        placement: {
+          center: { x: 0, y: 0, z: -d / 2 + zPosition },
+          rightAxis: { x: 1, y: 0, z: 0 },
+          upAxis: { x: 0, y: 1, z: 0 },
+          outwardAxis: { x: 0, y: 0, z: 1 }
+        }
+      });
+    });
+
     return definitions;
   }
 
   function buildPanels(rawConfig) {
     const config = normalizeConfig(rawConfig);
     const definitions = getPanelDefinitions(config);
-    const panels = definitions.map((definition) => (
-      makePanel(definition.name, definition.width, definition.height, definition.edges, config)
-    ));
+    const panels = definitions.map((definition) => {
+      if (definition.dividerPanel) {
+        return makeDividerPanel(
+          definition.name,
+          definition.width,
+          definition.height,
+          config,
+          definition.topSlotPositions,
+          definition.bottomSlotPositions,
+          definition.placement
+        );
+      }
+
+      return makePanel(definition.name, definition.width, definition.height, definition.edges, config, {
+        kind: definition.kind,
+        placement: definition.placement
+      });
+    });
     return { config, panels };
   }
 
@@ -322,7 +535,7 @@
     const placements = getAssemblyPlacements(result.config);
     const panels = result.panels.map((panel) => ({
       ...panel,
-      placement: placements[panel.name]
+      placement: panel.placement || placements[panel.name]
     }));
     return { config: result.config, panels };
   }
@@ -347,10 +560,22 @@
 
   function layoutPanels(panels, config) {
     const gap = Math.max(12, config.thickness * 5);
-    const rows = config.open
-      ? [["left", "front", "right", "back"], ["bottom"]]
-      : [["top"], ["left", "front", "right", "back"], ["bottom"]];
     const byName = Object.fromEntries(panels.map((panel) => [panel.name, panel]));
+    const rows = [];
+
+    if (byName.top) rows.push(["top"]);
+    rows.push(["left", "front", "right", "back"], ["bottom"]);
+
+    const lidNames = panels.filter((panel) => panel.kind === "lid").map((panel) => panel.name);
+    const lipNames = panels.filter((panel) => panel.kind === "lid-lip").map((panel) => panel.name);
+    if (lidNames.length) rows.push(lidNames);
+    if (lipNames.length) rows.push(lipNames);
+
+    const dividerNames = panels.filter((panel) => panel.kind === "divider").map((panel) => panel.name);
+    for (let i = 0; i < dividerNames.length; i += 4) {
+      rows.push(dividerNames.slice(i, i + 4));
+    }
+
     const laidOut = [];
     let y = gap;
     let totalWidth = 0;
@@ -556,8 +781,21 @@
         thickness: config.thickness,
         fingerSize: config.fingerSize,
         kerf: config.kerf,
-        fit: config.fit
+        fit: config.fit,
+        lidEnabled: config.lidEnabled,
+        lidOverhang: config.lidOverhang,
+        lidLipHeight: config.lidLipHeight,
+        lidClearance: config.lidClearance,
+        dividerXCount: config.dividerXCount,
+        dividerYCount: config.dividerYCount,
+        dividerSlots: config.dividerSlots
       },
+      panels: layout.panels.map((panel) => ({
+        name: panel.name,
+        kind: panel.kind,
+        width: round(panel.baseWidth),
+        height: round(panel.baseHeight)
+      })),
       features
     };
 

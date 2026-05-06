@@ -16,6 +16,13 @@ const FEATURE_COLORS = {
   mark: 0x172126
 };
 
+function panelColor(panel) {
+  if (panel.kind === "lid") return 0xe6d0a4;
+  if (panel.kind === "lid-lip") return 0xc7d6b6;
+  if (panel.kind === "divider") return 0xd6e7f0;
+  return PANEL_COLORS[panel.name] || 0xd9c7a3;
+}
+
 function signedArea(points) {
   let area = 0;
   for (let i = 0; i < points.length; i += 1) {
@@ -403,7 +410,7 @@ export function createBoxPreview(container, model) {
         featuresByPanel[panel.name] || []
       );
       const material = new THREE.MeshStandardMaterial({
-        color: PANEL_COLORS[panel.name] || 0xd9c7a3,
+        color: panelColor(panel),
         roughness: 0.58,
         metalness: 0.02,
         side: THREE.DoubleSide

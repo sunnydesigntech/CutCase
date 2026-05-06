@@ -15,6 +15,7 @@
   const summaryMetricsEl = document.querySelector("#summaryMetrics");
   const threeContainer = document.querySelector("#threePreview");
   const explodeValue = document.querySelector("#explodeValue");
+  const addonButtons = document.querySelectorAll("[data-addon]");
   const featureStatus = document.querySelector("#featureStatus");
   const featureEditor = document.querySelector("#featureEditor");
   const featurePanelName = document.querySelector("#featurePanelName");
@@ -35,6 +36,13 @@
     fingerSize: 9,
     kerf: 0.1,
     fit: "standard",
+    lidEnabled: false,
+    lidOverhang: 3,
+    lidLipHeight: 8,
+    lidClearance: 0.3,
+    dividerXCount: 0,
+    dividerYCount: 0,
+    dividerSlots: true,
     explode: 0,
     previewLabels: true,
     labels: true,
@@ -70,6 +78,13 @@
       fingerSize: data.get("fingerSize"),
       kerf: data.get("kerf"),
       fit: data.get("fit"),
+      lidEnabled: data.get("lidEnabled") === "on",
+      lidOverhang: data.get("lidOverhang"),
+      lidLipHeight: data.get("lidLipHeight"),
+      lidClearance: data.get("lidClearance"),
+      dividerXCount: data.get("dividerXCount"),
+      dividerYCount: data.get("dividerYCount"),
+      dividerSlots: data.get("dividerSlots") === "on",
       explode: data.get("explode"),
       previewLabels: data.get("previewLabels") === "on",
       labels: data.get("labels") === "on",
@@ -89,6 +104,13 @@
     controls.fingerSize.value = defaults.fingerSize;
     controls.kerf.value = defaults.kerf;
     controls.fit.value = defaults.fit;
+    controls.lidEnabled.checked = defaults.lidEnabled;
+    controls.lidOverhang.value = defaults.lidOverhang;
+    controls.lidLipHeight.value = defaults.lidLipHeight;
+    controls.lidClearance.value = defaults.lidClearance;
+    controls.dividerXCount.value = defaults.dividerXCount;
+    controls.dividerYCount.value = defaults.dividerYCount;
+    controls.dividerSlots.checked = defaults.dividerSlots;
     controls.explode.value = defaults.explode;
     controls.previewLabels.checked = defaults.previewLabels;
     controls.labels.checked = defaults.labels;
@@ -182,10 +204,14 @@
   function renderMetrics(config, layout, normalizedFeatures) {
     const front = layout.panels.find((panel) => panel.name === "front");
     const edge = front ? front.metrics.edges.bottom : null;
+    const dividerCount = config.dividerXCount + config.dividerYCount;
+    const lidParts = layout.panels.filter((panel) => panel.kind === "lid" || panel.kind === "lid-lip").length;
     metricsEl.innerHTML = [
       `<span>Inside ${fmt(config.insideDims.width)} x ${fmt(config.insideDims.depth)} x ${fmt(config.insideDims.height)}</span>`,
       `<span>${fmt(config.thickness)} material</span>`,
       `<span>${normalizedFeatures.length} features</span>`,
+      `<span>${dividerCount} dividers</span>`,
+      `<span>${config.lidEnabled ? `${lidParts} lid parts` : "no lid"}</span>`,
       `<span>${config.fit} fit</span>`
     ].join("");
 
@@ -193,6 +219,7 @@
       `<div class="metric-card"><span>Outside size</span><strong>${fmtCompact(config.outsideDims.width)} x ${fmtCompact(config.outsideDims.depth)} x ${fmtCompact(config.outsideDims.height)}</strong></div>`,
       `<div class="metric-card"><span>Inside size</span><strong>${fmtCompact(config.insideDims.width)} x ${fmtCompact(config.insideDims.depth)} x ${fmtCompact(config.insideDims.height)}</strong></div>`,
       `<div class="metric-card"><span>Panels</span><strong>${layout.panels.length}</strong></div>`,
+      `<div class="metric-card"><span>Add-ons</span><strong>${config.lidEnabled ? "lid" : "none"} · ${dividerCount} dividers</strong></div>`,
       `<div class="metric-card"><span>Front bottom run</span><strong>${edge ? `${edge.segments} fingers` : "n/a"}</strong></div>`
     ].join("");
   }
@@ -210,6 +237,16 @@
     const placing = activeTool === "feature";
     addHoleButton.setAttribute("aria-pressed", placing ? "true" : "false");
     preview.classList.toggle("is-placing-feature", placing);
+  }
+
+  function syncAddonButtons(config = readConfig()) {
+    addonButtons.forEach((button) => {
+      const active = button.dataset.addon === "lid"
+        ? config.lidEnabled
+        : Number(config.dividerXCount) > 0 || Number(config.dividerYCount) > 0;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
 
   function applySvgState() {
@@ -326,6 +363,7 @@
       errorEl.hidden = true;
       renderMetrics(exportResult.config, exportResult.layout, exportResult.features);
       syncToolState();
+      syncAddonButtons(exportResult.config);
       applySvgState();
       syncFeatureEditor();
 
@@ -466,6 +504,21 @@
   downloadButton.addEventListener("click", downloadSvg);
   fitTestButton.addEventListener("click", downloadFitTest);
   addHoleButton.addEventListener("click", () => setActiveTool("feature"));
+  addonButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.addon === "lid") {
+        controls.lidEnabled.checked = !controls.lidEnabled.checked;
+        if (controls.lidEnabled.checked) controls.open.checked = true;
+      } else if (Number(controls.dividerXCount.value) > 0 || Number(controls.dividerYCount.value) > 0) {
+        controls.dividerXCount.value = 0;
+        controls.dividerYCount.value = 0;
+      } else {
+        controls.dividerXCount.value = 1;
+        controls.dividerYCount.value = 1;
+      }
+      render();
+    });
+  });
   deleteFeatureButton.addEventListener("click", () => {
     if (!selectedFeatureId) return;
     features = features.filter((feature) => feature.id !== selectedFeatureId);

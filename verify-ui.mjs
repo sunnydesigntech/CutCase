@@ -95,6 +95,16 @@ const featureAfter = await canvasStats(page);
 await page.screenshot({ path: "artifacts/desktop-feature.png", fullPage: true });
 await page.locator("#threePreview").screenshot({ path: "artifacts/canvas-desktop-feature.png" });
 
+await page.click('[data-addon="lid"]');
+await page.click('[data-addon="divider"]');
+await page.waitForTimeout(700);
+const addonAfter = await canvasStats(page);
+const addonPanels = await page.evaluate(() => (
+  [...document.querySelectorAll(".panel-outline")].map((node) => node.getAttribute("data-panel"))
+));
+await page.screenshot({ path: "artifacts/desktop-addons.png", fullPage: true });
+await page.locator("#threePreview").screenshot({ path: "artifacts/canvas-desktop-addons.png" });
+
 await page.setViewportSize({ width: 390, height: 844 });
 await page.waitForTimeout(700);
 const mobile = await canvasStats(page);
@@ -102,7 +112,7 @@ await page.screenshot({ path: "artifacts/mobile.png", fullPage: true });
 await page.locator("#threePreview").screenshot({ path: "artifacts/canvas-mobile.png" });
 await browser.close();
 
-const result = { desktopBefore, desktopAfter, featureAfter, mobile, consoleMessages: messages };
+const result = { desktopBefore, desktopAfter, featureAfter, addonAfter, addonPanels, mobile, consoleMessages: messages };
 console.log(JSON.stringify(result, null, 2));
 
 if (messages.length > 0) throw new Error("Browser console produced messages.");
@@ -111,3 +121,7 @@ if (desktopBefore.nonBgRatio < 0.04 || mobile.nonBgRatio < 0.04) throw new Error
 if (desktopBefore.variance < 4 || mobile.variance < 4) throw new Error("Three.js canvas has insufficient pixel variation.");
 if (desktopBefore.dataUrlLength === desktopAfter.dataUrlLength) throw new Error("Drag interaction did not change the rendered canvas.");
 if (desktopAfter.hash === featureAfter.hash) throw new Error("Feature placement did not update the rendered 3D canvas.");
+if (featureAfter.hash === addonAfter.hash) throw new Error("Lid/divider add-ons did not update the rendered 3D canvas.");
+if (!addonPanels.includes("lid top")) throw new Error("Lid panel was not generated in the SVG layout.");
+if (!addonPanels.includes("divider front-back 1")) throw new Error("Front-back divider was not generated in the SVG layout.");
+if (!addonPanels.includes("divider left-right 1")) throw new Error("Left-right divider was not generated in the SVG layout.");

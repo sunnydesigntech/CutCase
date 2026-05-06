@@ -23,8 +23,8 @@
           </div>
           <div class="mode-tabs" aria-label="Box type">
             <button type="button" class="tab is-active">Box</button>
-            <button type="button" class="tab" disabled>Lid</button>
-            <button type="button" class="tab" disabled>Divider</button>
+            <button type="button" class="tab" data-addon="lid" aria-pressed="false">Lid</button>
+            <button type="button" class="tab" data-addon="divider" aria-pressed="false">Divider</button>
           </div>
           <div id="metrics" class="metrics" aria-live="polite"></div>
           <div class="actions">
@@ -102,6 +102,46 @@
                 <strong>Recommended next step</strong>
                 <span>Cut a fit test before the full sheet when material or laser power changes.</span>
               </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Lid</legend>
+              <label class="switch-row">
+                <span>Lift-off lid</span>
+                <input name="lidEnabled" type="checkbox">
+              </label>
+              <div class="field-row three-up">
+                <label>
+                  <span>Overhang</span>
+                  <input name="lidOverhang" type="number" min="0" step="0.1">
+                </label>
+                <label>
+                  <span>Lip height</span>
+                  <input name="lidLipHeight" type="number" min="0.1" step="0.1">
+                </label>
+                <label>
+                  <span>Clearance</span>
+                  <input name="lidClearance" type="number" min="0" step="0.05">
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Dividers</legend>
+              <div class="field-row two-up">
+                <label>
+                  <span>Front-back</span>
+                  <input name="dividerXCount" type="number" min="0" max="8" step="1">
+                </label>
+                <label>
+                  <span>Left-right</span>
+                  <input name="dividerYCount" type="number" min="0" max="8" step="1">
+                </label>
+              </div>
+              <label class="switch-row">
+                <span>Interlock slots</span>
+                <input name="dividerSlots" type="checkbox">
+              </label>
             </fieldset>
 
             <fieldset>
