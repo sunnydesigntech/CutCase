@@ -35,7 +35,38 @@ function makeMatrix(placement, explodeDistance) {
   return matrix;
 }
 
-function makePanelGeometry(panel, thickness, placement, explodeDistance) {
+function addRectangleHole(shape, centerX, centerY, width, height) {
+  const x1 = centerX - width / 2;
+  const x2 = centerX + width / 2;
+  const y1 = centerY - height / 2;
+  const y2 = centerY + height / 2;
+  const hole = new THREE.Path();
+  hole.moveTo(x1, y1);
+  hole.lineTo(x1, y2);
+  hole.lineTo(x2, y2);
+  hole.lineTo(x2, y1);
+  hole.lineTo(x1, y1);
+  shape.holes.push(hole);
+}
+
+function addSlotHole(shape, centerX, centerY, width, height) {
+  const radius = height / 2;
+  const left = centerX - width / 2;
+  const right = centerX + width / 2;
+  const top = centerY + height / 2;
+  const bottom = centerY - height / 2;
+  const start = left + radius;
+  const end = right - radius;
+  const hole = new THREE.Path();
+  hole.moveTo(start, top);
+  hole.lineTo(end, top);
+  hole.absarc(end, centerY, radius, Math.PI / 2, -Math.PI / 2, true);
+  hole.lineTo(start, bottom);
+  hole.absarc(start, centerY, radius, -Math.PI / 2, Math.PI / 2, true);
+  shape.holes.push(hole);
+}
+
+function makePanelGeometry(panel, thickness, placement, explodeDistance, features = []) {
   let points = panel.points.map((point) => new THREE.Vector2(
     point.x - panel.baseWidth / 2,
     panel.baseHeight / 2 - point.y
@@ -46,10 +77,30 @@ function makePanelGeometry(panel, thickness, placement, explodeDistance) {
   }
 
   const shape = new THREE.Shape(points);
+  features.filter((feature) => feature.operation === "cut").forEach((feature) => {
+    const centerX = feature.x - panel.baseWidth / 2;
+    const centerY = panel.baseHeight / 2 - feature.y;
+
+    if (feature.type === "slot") {
+      addSlotHole(shape, centerX, centerY, feature.width, feature.height);
+      return;
+    }
+
+    if (feature.type === "rectangle") {
+      addRectangleHole(shape, centerX, centerY, feature.width, feature.height);
+      return;
+    }
+
+    const radius = feature.diameter / 2;
+    const hole = new THREE.Path();
+    hole.absellipse(centerX, centerY, radius, radius, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+  });
+
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth: thickness,
     bevelEnabled: false,
-    curveSegments: 1
+    curveSegments: 24
   });
 
   geometry.translate(0, 0, -thickness / 2);
@@ -175,6 +226,12 @@ export function createBoxPreview(container, model) {
 
   function render(configRaw) {
     const sceneData = model.buildSceneData(configRaw);
+    const normalizedFeatures = model.normalizeFeatures(configRaw.features || [], sceneData.panels, sceneData.config);
+    const featuresByPanel = normalizedFeatures.reduce((groups, feature) => {
+      groups[feature.panel] = groups[feature.panel] || [];
+      groups[feature.panel].push(feature);
+      return groups;
+    }, {});
     clearRoot();
 
     const explodePercent = Math.max(0, Math.min(100, Number(configRaw.explode) || 0));
@@ -185,7 +242,13 @@ export function createBoxPreview(container, model) {
     ) * 0.62 * (explodePercent / 100);
 
     sceneData.panels.forEach((panel) => {
-      const geometry = makePanelGeometry(panel, sceneData.config.thickness, panel.placement, explodeDistance);
+      const geometry = makePanelGeometry(
+        panel,
+        sceneData.config.thickness,
+        panel.placement,
+        explodeDistance,
+        featuresByPanel[panel.name] || []
+      );
       const material = new THREE.MeshStandardMaterial({
         color: PANEL_COLORS[panel.name] || 0xd9c7a3,
         roughness: 0.58,

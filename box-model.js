@@ -2,6 +2,8 @@
   "use strict";
 
   const EDGE_ORDER = ["top", "right", "bottom", "left"];
+  const FEATURE_TYPES = ["drill-hole", "slot", "rectangle"];
+  const FEATURE_OPERATIONS = ["cut", "engrave", "mark"];
   const EPSILON = 1e-7;
 
   function numberOr(value, fallback) {
@@ -369,6 +371,10 @@
           ...panel,
           points,
           bounds: placedBounds,
+          origin: {
+            x: round(dx),
+            y: round(dy)
+          },
           label: {
             x: round((placedBounds.minX + placedBounds.maxX) / 2),
             y: round((placedBounds.minY + placedBounds.maxY) / 2)
@@ -403,6 +409,117 @@
       .replace(/"/g, "&quot;");
   }
 
+  function normalizeFeatures(rawFeatures, panels, config) {
+    if (!Array.isArray(rawFeatures)) return [];
+    const byName = Object.fromEntries(panels.map((panel) => [panel.name, panel]));
+
+    return rawFeatures.map((feature, index) => {
+      if (!feature || typeof feature !== "object") return null;
+      const type = FEATURE_TYPES.includes(feature.type) ? feature.type : "drill-hole";
+      const panel = byName[feature.panel];
+      if (!panel) return null;
+
+      const operation = FEATURE_OPERATIONS.includes(feature.operation) ? feature.operation : "cut";
+      const maxDiameter = Math.max(0.2, Math.min(panel.baseWidth, panel.baseHeight) * 0.9);
+      const diameter = clamp(numberOr(feature.diameter, config.thickness * 1.6), 0.2, maxDiameter);
+      const maxWidth = Math.max(0.2, panel.baseWidth * 0.9);
+      const maxHeight = Math.max(0.2, panel.baseHeight * 0.9);
+      const requestedWidth = numberOr(feature.width, type === "slot" ? config.thickness * 6 : config.thickness * 4);
+      const requestedHeight = numberOr(feature.height, type === "slot" ? config.thickness * 2 : config.thickness * 4);
+      const width = clamp(type === "drill-hole" ? diameter : requestedWidth, 0.2, maxWidth);
+      const height = clamp(
+        type === "drill-hole" ? diameter : requestedHeight,
+        0.2,
+        type === "slot" ? Math.min(maxHeight, maxWidth) : maxHeight
+      );
+      const normalizedWidth = type === "slot" ? clamp(Math.max(width, height), height, maxWidth) : width;
+      const halfWidth = (type === "drill-hole" ? diameter : normalizedWidth) / 2;
+      const halfHeight = (type === "drill-hole" ? diameter : height) / 2;
+      const x = clamp(numberOr(feature.x, panel.baseWidth / 2), halfWidth, Math.max(halfWidth, panel.baseWidth - halfWidth));
+      const y = clamp(numberOr(feature.y, panel.baseHeight / 2), halfHeight, Math.max(halfHeight, panel.baseHeight - halfHeight));
+      const edgeClearance = Math.min(x - halfWidth, y - halfHeight, panel.baseWidth - x - halfWidth, panel.baseHeight - y - halfHeight);
+      const warnings = [];
+
+      if (edgeClearance < 0) {
+        warnings.push("Feature extends outside the panel.");
+      } else if (edgeClearance < config.thickness) {
+        warnings.push("Feature is close to the panel edge.");
+      }
+
+      if (Math.min(diameter, normalizedWidth, height) <= config.effectiveKerf * 2) {
+        warnings.push("Feature size is close to the effective kerf.");
+      }
+
+      return {
+        id: feature.id ? String(feature.id) : `feature-${index + 1}`,
+        type,
+        panel: panel.name,
+        x: round(x),
+        y: round(y),
+        diameter: round(diameter),
+        width: round(normalizedWidth),
+        height: round(height),
+        operation,
+        warnings,
+        edgeClearance: round(edgeClearance)
+      };
+    }).filter(Boolean);
+  }
+
+  function featureClass(feature) {
+    if (feature.operation === "cut") return "cut feature feature-cut";
+    if (feature.operation === "engrave") return "engrave feature feature-engrave";
+    return "mark feature feature-mark";
+  }
+
+  function renderFeature(feature, panel) {
+    const cx = round(panel.origin.x + feature.x);
+    const cy = round(panel.origin.y + feature.y);
+    const baseAttrs = [
+      `class="${featureClass(feature)}"`,
+      `data-feature-id="${escapeXml(feature.id)}"`,
+      `data-feature-type="${escapeXml(feature.type)}"`,
+      `data-panel="${escapeXml(feature.panel)}"`,
+      `data-operation="${escapeXml(feature.operation)}"`
+    ];
+
+    if (feature.type === "slot") {
+      const width = round(feature.width);
+      const height = round(feature.height);
+      const radius = round(height / 2);
+      const left = round(cx - width / 2);
+      const right = round(cx + width / 2);
+      const top = round(cy - height / 2);
+      const bottom = round(cy + height / 2);
+      const start = round(left + radius);
+      const end = round(right - radius);
+      const path = [
+        `M${start} ${top}`,
+        `H${end}`,
+        `A${radius} ${radius} 0 0 1 ${end} ${bottom}`,
+        `H${start}`,
+        `A${radius} ${radius} 0 0 1 ${start} ${top}`,
+        "Z"
+      ].join(" ");
+      return `<path ${baseAttrs.join(" ")} data-width="${width}" data-height="${height}" d="${path}"/>`;
+    }
+
+    if (feature.type === "rectangle") {
+      const width = round(feature.width);
+      const height = round(feature.height);
+      return `<rect ${baseAttrs.join(" ")} data-width="${width}" data-height="${height}" x="${round(cx - width / 2)}" y="${round(cy - height / 2)}" width="${width}" height="${height}"/>`;
+    }
+
+    const r = round(feature.diameter / 2);
+    const attrs = [
+      ...baseAttrs,
+      `cx="${cx}"`,
+      `cy="${cy}"`,
+      `r="${r}"`
+    ];
+    return `<circle ${attrs.join(" ")}/>`;
+  }
+
   function buildSvg(rawConfig, options = {}) {
     const { config, panels } = buildPanels(rawConfig);
     const layout = layoutPanels(panels, config);
@@ -410,11 +527,22 @@
     const cutColor = options.cutColor || "#d11a2a";
     const labelColor = options.labelColor || "#58616f";
     const lineWidth = Math.max(0.01, numberOr(options.lineWidth, 0.1));
+    const features = normalizeFeatures(options.features || rawConfig.features, layout.panels, config);
+    const featureByPanel = features.reduce((groups, feature) => {
+      groups[feature.panel] = groups[feature.panel] || [];
+      groups[feature.panel].push(feature);
+      return groups;
+    }, {});
+    const hitAreas = options.interactive ? layout.panels.map((panel) => (
+      `<rect class="panel-hit" data-panel="${escapeXml(panel.name)}" ` +
+      `x="${panel.origin.x}" y="${panel.origin.y}" width="${round(panel.baseWidth)}" height="${round(panel.baseHeight)}"/>`
+    )).join("") : "";
     const paths = layout.panels.map((panel) => {
       const label = showLabels
         ? `<text x="${panel.label.x}" y="${panel.label.y}" text-anchor="middle" dominant-baseline="middle" class="label">${escapeXml(panel.name)}</text>`
         : "";
-      return `<path class="cut" data-panel="${escapeXml(panel.name)}" d="${pointsToPath(panel.points)}"/>${label}`;
+      const panelFeatures = (featureByPanel[panel.name] || []).map((feature) => renderFeature(feature, panel)).join("");
+      return `<path class="cut panel-outline" data-panel="${escapeXml(panel.name)}" d="${pointsToPath(panel.points)}"/>${panelFeatures}${label}`;
     }).join("");
     const metadata = {
       generator: "basicFingerBox",
@@ -429,7 +557,8 @@
         fingerSize: config.fingerSize,
         kerf: config.kerf,
         fit: config.fit
-      }
+      },
+      features
     };
 
     const svg = [
@@ -437,13 +566,17 @@
       `<metadata id="finger-box-config">${escapeXml(JSON.stringify(metadata))}</metadata>`,
       "<style>",
       `.cut{fill:none;stroke:${escapeXml(cutColor)};stroke-width:${lineWidth};vector-effect:non-scaling-stroke}`,
+      `.engrave{fill:none;stroke:${escapeXml(labelColor)};stroke-width:${lineWidth};stroke-dasharray:1.2 1.2;vector-effect:non-scaling-stroke}`,
+      `.mark{fill:${escapeXml(labelColor)};stroke:none}`,
       `.label{font-family:Arial,sans-serif;font-size:5px;fill:${escapeXml(labelColor)}}`,
+      options.interactive ? `.panel-hit{fill:transparent;stroke:transparent;pointer-events:all}.feature{fill:rgba(209,26,42,0.08);cursor:pointer}.feature-engrave{fill:rgba(88,97,111,0.08)}.feature-mark{fill:${escapeXml(labelColor)}}` : `.feature-cut,.feature-engrave{fill:none}`,
       "</style>",
+      hitAreas,
       paths,
       "</svg>"
     ].join("");
 
-    return { config, layout, svg };
+    return { config, features, layout, svg };
   }
 
   function buildKerfTestSvg(rawConfig, options = {}) {
@@ -519,6 +652,7 @@
     getFingerRange,
     layoutPanels,
     normalizeConfig,
+    normalizeFeatures,
     oddSegmentCount,
     pointsToPath
   };
