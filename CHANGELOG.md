@@ -2,10 +2,9 @@
 
 ## Unreleased
 
-- Expanded repository documentation, GitHub metadata, and wiki content.
-- Added project docs for usage, architecture, fabrication notes, and roadmap.
+No unreleased changes yet.
 
-## 0.1.0
+## 0.1.0 - 2026-05-06
 
 - Added the CutCase static browser app.
 - Added finger-joint box generation.
@@ -19,3 +18,6 @@
 - Added SVG export with embedded metadata.
 - Added fit-test coupon export.
 - Added GitHub Pages deployment.
+- Expanded repository documentation, GitHub metadata, and wiki content.
+- Added project docs for usage, architecture, fabrication notes, and roadmap.
+- Added detailed GitHub Wiki pages for getting started, interface guide, features, geometry model, SVG export, fabrication notes, development, troubleshooting, FAQ, and roadmap.
