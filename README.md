@@ -2,7 +2,7 @@
 
 CutCase is a browser-based laser-cut box designer for finger-joint cases, lids, divider grids, and editable panel features. It generates a rotatable Three.js assembly preview and a production SVG layout from the same geometry model.
 
-[Open the live app](https://sunnydesigntech.github.io/CutCase/) · [Read the user guide](docs/user-guide.md) · [Geometry notes](docs/geometry-and-fabrication.md) · [Development guide](docs/development.md)
+[Open the live app](https://sunnydesigntech.github.io/CutCase/) · [GitHub Wiki](https://github.com/sunnydesigntech/CutCase/wiki) · [Read the user guide](docs/user-guide.md) · [Geometry notes](docs/geometry-and-fabrication.md) · [Development guide](docs/development.md)
 
 ## Current Capabilities
 
@@ -78,6 +78,7 @@ docs/                   Study notes and project documentation
 - [Architecture](docs/architecture.md)
 - [Geometry and fabrication notes](docs/geometry-and-fabrication.md)
 - [Roadmap](docs/roadmap.md)
+- [Detailed GitHub Wiki](https://github.com/sunnydesigntech/CutCase/wiki)
 - [Wiki source mirror](docs/wiki/Home.md)
 - [MakerCase study notes](docs/makercase-basic-box-study.md)
 - [Contributing](CONTRIBUTING.md)
