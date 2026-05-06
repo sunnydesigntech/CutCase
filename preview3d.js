@@ -10,6 +10,12 @@ const PANEL_COLORS = {
   top: 0x8fb4c5
 };
 
+const FEATURE_COLORS = {
+  cut: 0xd11a2a,
+  engrave: 0x58616f,
+  mark: 0x172126
+};
+
 function signedArea(points) {
   let area = 0;
   for (let i = 0; i < points.length; i += 1) {
@@ -66,6 +72,107 @@ function addSlotHole(shape, centerX, centerY, width, height) {
   shape.holes.push(hole);
 }
 
+function featureCenter(feature, panel) {
+  return {
+    x: feature.x - panel.baseWidth / 2,
+    y: panel.baseHeight / 2 - feature.y
+  };
+}
+
+function makeFeatureShape(feature, panel) {
+  const center = featureCenter(feature, panel);
+  const shape = new THREE.Shape();
+
+  if (feature.type === "slot") {
+    const radius = feature.height / 2;
+    const left = center.x - feature.width / 2;
+    const right = center.x + feature.width / 2;
+    const top = center.y + feature.height / 2;
+    const bottom = center.y - feature.height / 2;
+    const start = left + radius;
+    const end = right - radius;
+    shape.moveTo(start, top);
+    shape.lineTo(end, top);
+    shape.absarc(end, center.y, radius, Math.PI / 2, -Math.PI / 2, true);
+    shape.lineTo(start, bottom);
+    shape.absarc(start, center.y, radius, -Math.PI / 2, Math.PI / 2, true);
+    return shape;
+  }
+
+  if (feature.type === "rectangle") {
+    const x1 = center.x - feature.width / 2;
+    const x2 = center.x + feature.width / 2;
+    const y1 = center.y - feature.height / 2;
+    const y2 = center.y + feature.height / 2;
+    shape.moveTo(x1, y1);
+    shape.lineTo(x2, y1);
+    shape.lineTo(x2, y2);
+    shape.lineTo(x1, y2);
+    shape.lineTo(x1, y1);
+    return shape;
+  }
+
+  const radius = feature.diameter / 2;
+  shape.absellipse(center.x, center.y, radius, radius, 0, Math.PI * 2, false);
+  return shape;
+}
+
+function makeFeatureOutlinePoints(feature, panel) {
+  const center = featureCenter(feature, panel);
+  const points = [];
+
+  if (feature.type === "slot") {
+    const radius = feature.height / 2;
+    const leftCenter = center.x - feature.width / 2 + radius;
+    const rightCenter = center.x + feature.width / 2 - radius;
+    const top = center.y + feature.height / 2;
+    const bottom = center.y - feature.height / 2;
+    const arcSegments = 14;
+
+    points.push(new THREE.Vector2(leftCenter, top));
+    points.push(new THREE.Vector2(rightCenter, top));
+    for (let i = 1; i <= arcSegments; i += 1) {
+      const angle = Math.PI / 2 - (Math.PI * i) / arcSegments;
+      points.push(new THREE.Vector2(
+        rightCenter + Math.cos(angle) * radius,
+        center.y + Math.sin(angle) * radius
+      ));
+    }
+    points.push(new THREE.Vector2(leftCenter, bottom));
+    for (let i = 1; i <= arcSegments; i += 1) {
+      const angle = -Math.PI / 2 - (Math.PI * i) / arcSegments;
+      points.push(new THREE.Vector2(
+        leftCenter + Math.cos(angle) * radius,
+        center.y + Math.sin(angle) * radius
+      ));
+    }
+    return points;
+  }
+
+  if (feature.type === "rectangle") {
+    const x1 = center.x - feature.width / 2;
+    const x2 = center.x + feature.width / 2;
+    const y1 = center.y - feature.height / 2;
+    const y2 = center.y + feature.height / 2;
+    return [
+      new THREE.Vector2(x1, y1),
+      new THREE.Vector2(x2, y1),
+      new THREE.Vector2(x2, y2),
+      new THREE.Vector2(x1, y2)
+    ];
+  }
+
+  const radius = feature.diameter / 2;
+  for (let i = 0; i < 64; i += 1) {
+    const angle = (Math.PI * 2 * i) / 64;
+    points.push(new THREE.Vector2(
+      center.x + Math.cos(angle) * radius,
+      center.y + Math.sin(angle) * radius
+    ));
+  }
+  return points;
+}
+
 function makePanelGeometry(panel, thickness, placement, explodeDistance, features = []) {
   let points = panel.points.map((point) => new THREE.Vector2(
     point.x - panel.baseWidth / 2,
@@ -107,6 +214,52 @@ function makePanelGeometry(panel, thickness, placement, explodeDistance, feature
   geometry.applyMatrix4(makeMatrix(placement, explodeDistance));
   geometry.computeVertexNormals();
   return geometry;
+}
+
+function addFeatureOverlay(root, panel, thickness, placement, explodeDistance, feature) {
+  const color = FEATURE_COLORS[feature.operation] || FEATURE_COLORS.cut;
+  const z = thickness / 2 + 0.16;
+
+  if (feature.operation !== "cut") {
+    const fillGeometry = new THREE.ShapeGeometry(makeFeatureShape(feature, panel), 24);
+    fillGeometry.translate(0, 0, z);
+    fillGeometry.applyMatrix4(makeMatrix(placement, explodeDistance));
+    const fill = new THREE.Mesh(
+      fillGeometry,
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: feature.operation === "mark" ? 0.28 : 0.16,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      })
+    );
+    fill.name = `${panel.name}-${feature.type}-${feature.operation}-fill`;
+    fill.renderOrder = 4;
+    root.add(fill);
+  }
+
+  const outlinePoints = makeFeatureOutlinePoints(feature, panel).map((point) => (
+    new THREE.Vector3(point.x, point.y, z + 0.08)
+  ));
+  const outlineGeometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
+  outlineGeometry.applyMatrix4(makeMatrix(placement, explodeDistance));
+  const outline = new THREE.LineLoop(
+    outlineGeometry,
+    new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: feature.operation === "cut" ? 0.95 : 0.82,
+      depthTest: true,
+      depthWrite: false
+    })
+  );
+  outline.name = `${panel.name}-${feature.type}-${feature.operation}-outline`;
+  outline.renderOrder = 5;
+  root.add(outline);
 }
 
 function makeLabelTexture(text) {
@@ -266,6 +419,17 @@ export function createBoxPreview(container, model) {
         new THREE.LineBasicMaterial({ color: 0x1f2d32, transparent: true, opacity: 0.78 })
       );
       root.add(edges);
+
+      (featuresByPanel[panel.name] || []).forEach((feature) => {
+        addFeatureOverlay(
+          root,
+          panel,
+          sceneData.config.thickness,
+          panel.placement,
+          explodeDistance,
+          feature
+        );
+      });
 
       if (configRaw.previewLabels !== false) {
         const texture = makeLabelTexture(panel.name);

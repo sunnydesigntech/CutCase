@@ -10,6 +10,7 @@ The feature editor supports:
 - Cut, engrave, or mark operations
 - Size selection before placement
 - Post-placement edit/delete controls
+- Real-time 3D surface previews for placed features
 - SVG metadata for generated features
 
 Open `index.html` directly, or run the local server and open `http://localhost:5173`:
