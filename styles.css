@@ -1,0 +1,290 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7f6;
+  --panel: #ffffff;
+  --ink: #172126;
+  --muted: #65717a;
+  --line: #d8dfdc;
+  --accent: #0f766e;
+  --accent-dark: #0b4f4a;
+  --warm: #c9822f;
+  --danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  padding: 9px 12px;
+  cursor: pointer;
+  min-height: 38px;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button.secondary {
+  background: #e9eeee;
+  color: var(--ink);
+}
+
+button.secondary:hover {
+  background: #dce4e1;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.tool {
+  min-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.topbar {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 21px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef3f1;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 310px 1fr;
+}
+
+.controls {
+  border-right: 1px solid var(--line);
+  background: #fbfcfb;
+  padding: 16px;
+  overflow: auto;
+}
+
+fieldset {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: #2b383d;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cfd8d5;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 9px;
+}
+
+input:focus,
+select:focus,
+button:focus {
+  outline: 2px solid rgba(15, 118, 110, 0.3);
+  outline-offset: 2px;
+}
+
+.switch-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: 38px;
+}
+
+.switch-row input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--accent);
+}
+
+.preview-grid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(280px, 44vh) 1fr;
+}
+
+.preview-3d {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+    #f8faf9;
+  background-size: 24px 24px;
+  overflow: hidden;
+}
+
+.preview-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-badge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 2;
+  border: 1px solid rgba(23, 33, 38, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #39474d;
+  padding: 5px 10px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.svg-preview {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.svg-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+.svg-preview svg .cut {
+  stroke-width: max(0.32px, 0.1mm) !important;
+}
+
+.error {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(180, 35, 24, 0.28);
+  background: #fff4f2;
+  color: var(--danger);
+  border-radius: 6px;
+}
+
+@media (max-width: 840px) {
+  .app-shell {
+    padding: 0;
+  }
+
+  .tool {
+    min-height: 100vh;
+    border: 0;
+  }
+
+  .topbar {
+    display: grid;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .controls {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .preview-grid {
+    order: -1;
+  }
+
+  fieldset {
+    margin: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions button {
+    flex: 1;
+  }
+}

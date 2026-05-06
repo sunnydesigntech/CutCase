@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Finger Joint Box</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+    <script src="box-model.js" defer></script>
+    <script type="module" src="preview3d.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="tool">
+        <header class="topbar">
+          <div>
+            <h1>Finger Joint Box</h1>
+            <div id="metrics" class="metrics"></div>
+          </div>
+          <div class="actions">
+            <button id="reset" type="button" class="secondary">Reset</button>
+            <button id="downloadFitTest" type="button" class="secondary">Fit Test</button>
+            <button id="downloadSvg" type="button">Download SVG</button>
+          </div>
+        </header>
+
+        <div id="error" class="error" hidden></div>
+
+        <div class="workspace">
+          <form id="controls" class="controls">
+            <fieldset>
+              <legend>Dimensions</legend>
+              <label>
+                <span>Basis</span>
+                <select name="dimensionBasis">
+                  <option value="inside">Inside</option>
+                  <option value="outside">Outside</option>
+                </select>
+              </label>
+              <label class="switch-row">
+                <span>Open top</span>
+                <input name="open" type="checkbox">
+              </label>
+              <label>
+                <span>Width</span>
+                <input name="width" type="number" min="1" step="0.1">
+              </label>
+              <label>
+                <span>Height</span>
+                <input name="height" type="number" min="1" step="0.1">
+              </label>
+              <label>
+                <span>Depth</span>
+                <input name="depth" type="number" min="1" step="0.1">
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Material</legend>
+              <label>
+                <span>Thickness</span>
+                <input name="thickness" type="number" min="0.1" step="0.1">
+              </label>
+              <label>
+                <span>Finger width</span>
+                <input name="fingerSize" type="number" min="0.5" step="0.5">
+              </label>
+              <label>
+                <span>Kerf</span>
+                <input name="kerf" type="number" min="0" step="0.01">
+              </label>
+              <label>
+                <span>Fit</span>
+                <select name="fit">
+                  <option value="loose">Loose</option>
+                  <option value="standard">Standard</option>
+                  <option value="tight">Tight</option>
+                </select>
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Preview</legend>
+              <label>
+                <span>Explode</span>
+                <input name="explode" type="range" min="0" max="100" step="1">
+              </label>
+              <label class="switch-row">
+                <span>3D labels</span>
+                <input name="previewLabels" type="checkbox">
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Export</legend>
+              <label class="switch-row">
+                <span>Panel labels</span>
+                <input name="labels" type="checkbox">
+              </label>
+              <label>
+                <span>Cut color</span>
+                <input name="cutColor" type="color">
+              </label>
+              <label>
+                <span>Label color</span>
+                <input name="labelColor" type="color">
+              </label>
+              <label>
+                <span>Line width</span>
+                <input name="lineWidth" type="number" min="0.01" step="0.01">
+              </label>
+            </fieldset>
+          </form>
+
+          <section class="preview-grid">
+            <div id="threePreview" class="preview-3d" aria-label="Rotatable box preview">
+              <div class="preview-badge">Drag to rotate · Scroll to zoom</div>
+            </div>
+            <div id="svgPreview" class="svg-preview" aria-label="Cut layout preview"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
