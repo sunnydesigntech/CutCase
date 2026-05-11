@@ -199,6 +199,12 @@ The right-side SVG preview is interactive:
 - active placement mode uses a crosshair cursor
 - layout updates after every parameter change
 
+## Feature Validation
+
+Feature validation runs after each edit. The production summary warns when a cut feature is close to a panel edge, too small for the current kerf, or overlapping another cut feature on the same panel.
+
+The same validation data is embedded in exported SVG metadata so a saved file can be audited later.
+
 ## 3D Preview
 
 The 3D preview supports:

@@ -103,6 +103,23 @@ Supported operations:
 - `engrave`: appears as an SVG engrave operation and 3D surface overlay
 - `mark`: appears as an SVG mark operation and 3D surface overlay
 
+## Design Validation
+
+CutCase runs validation after dimensions, add-ons, and features are normalized. The validation result is shown in the production summary and embedded in exported SVG metadata.
+
+Current checks include:
+
+- zero or high effective kerf
+- requested finger width clamping
+- very small inside spans
+- lid clearance and tall lid lips
+- narrow divider compartments
+- cut features near panel edges
+- cut features that are too small for the current kerf
+- overlapping or nearly touching cut features on the same panel
+
+Warnings do not replace a physical test cut. They are intended to catch obvious geometry risks before material is wasted.
+
 ## Current Geometry Limitations
 
 - Finger-joint kerf compensation is simple tab widening, not a full polygon offset.

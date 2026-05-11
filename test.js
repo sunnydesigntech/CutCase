@@ -139,6 +139,8 @@ assert.strictEqual(holeSvgResult.features[0].panel, "front");
 assert.match(holeSvgResult.svg, /data-feature-id="hole-1"/);
 assert.match(holeSvgResult.svg, /<circle class="cut feature feature-cut"/);
 assert.match(holeSvgResult.svg, /&quot;features&quot;:\[/);
+assert.ok(Array.isArray(holeSvgResult.validation), "SVG build should include validation issues");
+assert.match(holeSvgResult.svg, /&quot;validation&quot;:\[/);
 
 const shapeSvgResult = box.buildSvg({
   dimensionBasis: "inside",
@@ -180,6 +182,48 @@ assert.strictEqual(shapeSvgResult.features[0].width, 18);
 assert.match(shapeSvgResult.svg, /data-feature-type="slot"/);
 assert.match(shapeSvgResult.svg, /data-feature-type="rectangle"/);
 assert.match(shapeSvgResult.svg, /<rect class="engrave feature feature-engrave"/);
+
+const riskySvgResult = box.buildSvg({
+  dimensionBasis: "inside",
+  open: true,
+  lidEnabled: true,
+  lidClearance: 0,
+  dividerXCount: 4,
+  dividerYCount: 4,
+  width: 24,
+  height: 10,
+  depth: 24,
+  thickness: 3,
+  fingerSize: 1,
+  kerf: 0
+}, {
+  features: [
+    {
+      id: "overlap-a",
+      type: "drill-hole",
+      panel: "front",
+      x: 12,
+      y: 5,
+      diameter: 4,
+      operation: "cut"
+    },
+    {
+      id: "overlap-b",
+      type: "drill-hole",
+      panel: "front",
+      x: 13,
+      y: 5,
+      diameter: 4,
+      operation: "cut"
+    }
+  ]
+});
+
+assert.strictEqual(typeof box.validateDesign, "function");
+assert.ok(riskySvgResult.validation.some((issue) => issue.code === "finger-size-clamped"));
+assert.ok(riskySvgResult.validation.some((issue) => issue.code === "divider-cell-small"));
+assert.ok(riskySvgResult.validation.some((issue) => issue.code === "feature-overlap"));
+assert.ok(riskySvgResult.validation.some((issue) => issue.severity === "warning"));
 
 const scene = box.buildSceneData({
   dimensionBasis: "inside",

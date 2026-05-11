@@ -74,16 +74,31 @@ Feature placement flow:
 
 Cut operations are subtracted from the 3D panel mesh. Engrave and mark operations are shown as 3D surface overlays and exported as SVG operations.
 
-## 6. Export
+## 6. Check Validation
+
+The production summary shows validation results while you work. Review these checks before export, especially after adding holes, slots, lids, or dividers.
+
+Validation flags common risks:
+
+- zero kerf
+- finger width clamping
+- tight lid clearance
+- narrow divider compartments
+- cut features near edges
+- overlapping cut features
+
+Warnings are advisory, but they should be resolved or intentionally accepted before cutting material.
+
+## 7. Export
 
 Use:
 
 - `Download SVG`: exports the full panel layout.
 - `Fit Test`: exports loose, standard, and tight kerf test coupons.
 
-The exported SVG includes metadata with normalized configuration, generated panel information, and panel features.
+The exported SVG includes metadata with normalized configuration, generated panel information, panel features, and validation results.
 
-## 7. Recommended Fabrication Flow
+## 8. Recommended Fabrication Flow
 
 1. Measure actual material thickness with calipers.
 2. Enter that thickness in CutCase.

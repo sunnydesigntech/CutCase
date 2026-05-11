@@ -87,15 +87,20 @@ Planned export improvements:
 
 ## Validation
 
-Planned validation:
+Implemented baseline validation:
 
-- feature too close to finger joint
 - feature too close to panel edge
 - feature overlaps another feature
-- divider slot too close to edge
 - lid lip too tall
 - material too thick for dimensions
 - weak finger warning
+
+Planned validation:
+
+- feature too close to finger joint
+- divider slot too close to edge
+- machine-bed and stock-size constraints
+- inside-cut versus outside-cut operation checks
 
 ## Documentation
 

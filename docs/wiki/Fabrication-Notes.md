@@ -108,6 +108,8 @@ If dividers are too loose:
 
 ## Feature Placement Safety
 
+CutCase shows validation warnings in the production summary and stores the same warnings in SVG metadata. Treat these warnings as a preflight check, not as final machine approval.
+
 Before cutting:
 
 - keep holes away from panel edges
@@ -115,6 +117,16 @@ Before cutting:
 - keep large cutouts away from corners
 - avoid thin strips of material between nearby holes
 - check every feature in both SVG and 3D
+
+Current validation checks include:
+
+- cut features close to panel edges
+- cut features smaller than the current kerf can reliably represent
+- overlapping or nearly touching cut features
+- tight lid clearance
+- tall lid lips
+- narrow divider compartments
+- material and finger widths that create weak geometry
 
 ## Laser Software Checks
 

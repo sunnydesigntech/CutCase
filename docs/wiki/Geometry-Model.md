@@ -200,6 +200,30 @@ Each feature has:
 
 Feature coordinates are clamped so the shape remains inside the panel bounding area.
 
+## Design Validation
+
+Validation runs after panel layout and feature normalization. This matters because the validator uses final dimensions, clamped finger width, effective kerf, generated add-ons, and actual feature positions.
+
+The validator returns issue objects:
+
+```js
+{
+  severity: "warning",
+  code: "feature-overlap",
+  message: "Cut features on front overlap or leave less than 0.15 mm between cuts.",
+  panel: "front",
+  featureId: "hole-a",
+  relatedFeatureId: "hole-b"
+}
+```
+
+Validation results are:
+
+- shown in the production summary
+- included in `buildSvg()` results
+- embedded in exported SVG metadata
+- covered by geometry tests
+
 ## SVG Layout
 
 Panel polygons are generated in local coordinates, then placed onto the sheet layout with a row-based layout engine.

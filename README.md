@@ -17,6 +17,7 @@ CutCase is a browser-based laser-cut box designer for finger-joint cases, lids, 
 - Size-before-placement workflow plus post-placement edit/delete controls
 - Real-time SVG layout and rotatable 3D preview
 - Exploded 3D view for inspecting panel relationships
+- Design validation for risky dimensions, lid settings, divider spacing, and cut features
 - SVG export with embedded design metadata
 - Kerf and fit controls with a separate fit-test coupon export
 - Static GitHub Pages deployment

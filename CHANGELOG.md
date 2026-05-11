@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-No unreleased changes yet.
+- Added model-level design validation for kerf, finger width, small spans, lids, dividers, and panel features.
+- Added a production validation panel in the app so users can see warnings before exporting.
+- Embedded validation results in SVG metadata for traceability.
+- Added geometry tests for validation metadata and overlapping cut features.
 
 ## 0.1.0 - 2026-05-06
 

@@ -134,7 +134,22 @@ Feature workflow:
 
 Round holes use diameter. Slots and rectangles use width and height.
 
-## 9. Export a Fit Test
+## 9. Review Validation
+
+The production summary shows design checks as you edit the model. Review warnings before exporting the final sheet.
+
+Current checks can flag:
+
+- zero kerf
+- clamped finger width
+- tight lid clearance
+- narrow divider compartments
+- cut features near panel edges
+- overlapping or nearly touching cut features
+
+Warnings are not a substitute for laser software preview or a physical fit test, but they catch common mistakes before material is wasted.
+
+## 10. Export a Fit Test
 
 Before cutting the full design, click `Fit Test`. Cut the exported coupon from the same material.
 
@@ -146,7 +161,7 @@ Use it to choose between:
 
 If all fits are wrong, adjust kerf and repeat.
 
-## 10. Export the Full SVG
+## 11. Export the Full SVG
 
 Click `Download SVG` after the fit test is acceptable.
 

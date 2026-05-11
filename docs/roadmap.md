@@ -9,7 +9,7 @@ CutCase is currently a working static app for finger-joint boxes, lids, dividers
 - Add snap-to-center and snap-to-edge placement helpers.
 - Add mirror feature to opposite panel.
 - Add repeated feature patterns, such as evenly spaced mounting holes.
-- Add user-visible warnings for features too close to finger joints.
+- Add finger-joint-aware feature clearance warnings.
 - Improve lid assembly options, including slide lids and hinged lids.
 
 ## Fabrication Accuracy

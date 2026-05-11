@@ -13,6 +13,7 @@
   const errorEl = document.querySelector("#error");
   const metricsEl = document.querySelector("#metrics");
   const summaryMetricsEl = document.querySelector("#summaryMetrics");
+  const validationPanel = document.querySelector("#validationPanel");
   const threeContainer = document.querySelector("#threePreview");
   const explodeValue = document.querySelector("#explodeValue");
   const addonButtons = document.querySelectorAll("[data-addon]");
@@ -24,6 +25,11 @@
     "drill-hole": "round hole",
     slot: "slot",
     rectangle: "rectangle"
+  };
+  const validationLabels = {
+    error: "Error",
+    warning: "Check",
+    info: "Note"
   };
 
   const defaults = {
@@ -201,18 +207,20 @@
     return threePreview;
   }
 
-  function renderMetrics(config, layout, normalizedFeatures) {
+  function renderMetrics(config, layout, normalizedFeatures, validation = []) {
     const front = layout.panels.find((panel) => panel.name === "front");
     const edge = front ? front.metrics.edges.bottom : null;
     const dividerCount = config.dividerXCount + config.dividerYCount;
     const lidParts = layout.panels.filter((panel) => panel.kind === "lid" || panel.kind === "lid-lip").length;
+    const actionableChecks = validation.filter((issue) => issue.severity !== "info").length;
     metricsEl.innerHTML = [
       `<span>Inside ${fmt(config.insideDims.width)} x ${fmt(config.insideDims.depth)} x ${fmt(config.insideDims.height)}</span>`,
       `<span>${fmt(config.thickness)} material</span>`,
       `<span>${normalizedFeatures.length} features</span>`,
       `<span>${dividerCount} dividers</span>`,
       `<span>${config.lidEnabled ? `${lidParts} lid parts` : "no lid"}</span>`,
-      `<span>${config.fit} fit</span>`
+      `<span>${config.fit} fit</span>`,
+      `<span>${actionableChecks ? `${actionableChecks} checks` : "checks passed"}</span>`
     ].join("");
 
     summaryMetricsEl.innerHTML = [
@@ -222,6 +230,48 @@
       `<div class="metric-card"><span>Add-ons</span><strong>${config.lidEnabled ? "lid" : "none"} · ${dividerCount} dividers</strong></div>`,
       `<div class="metric-card"><span>Front bottom run</span><strong>${edge ? `${edge.segments} fingers` : "n/a"}</strong></div>`
     ].join("");
+  }
+
+  function renderValidation(validation = []) {
+    if (!validationPanel) return;
+    const errorCount = validation.filter((issue) => issue.severity === "error").length;
+    const warningCount = validation.filter((issue) => issue.severity === "warning").length;
+    const infoCount = validation.filter((issue) => issue.severity === "info").length;
+
+    if (!validation.length) {
+      validationPanel.innerHTML = `
+        <div class="validation-summary is-ready">
+          <strong>Design checks passed</strong>
+          <span>Cut a fit test before production.</span>
+        </div>
+      `;
+      return;
+    }
+
+    const summary = errorCount
+      ? `${errorCount} blocking ${errorCount === 1 ? "issue" : "issues"}`
+      : warningCount
+        ? `${warningCount} ${warningCount === 1 ? "warning" : "warnings"} before cutting`
+        : `${infoCount} ${infoCount === 1 ? "note" : "notes"}`;
+    const summaryClass = errorCount ? " is-error" : warningCount ? " is-warning" : "";
+    const items = validation.slice(0, 5).map((issue) => `
+      <li class="validation-item is-${escapeHtml(issue.severity)}">
+        <strong>${escapeHtml(validationLabels[issue.severity] || "Check")}</strong>
+        <span>${escapeHtml(issue.message)}</span>
+      </li>
+    `).join("");
+    const remaining = validation.length > 5
+      ? `<p class="validation-more">${validation.length - 5} more checks in the SVG metadata.</p>`
+      : "";
+
+    validationPanel.innerHTML = `
+      <div class="validation-summary${summaryClass}">
+        <strong>${validation.length} design ${validation.length === 1 ? "check" : "checks"}</strong>
+        <span>${escapeHtml(summary)}</span>
+      </div>
+      <ul class="validation-list">${items}</ul>
+      ${remaining}
+    `;
   }
 
   function selectedFeature() {
@@ -361,7 +411,8 @@
 
       preview.innerHTML = previewResult.svg;
       errorEl.hidden = true;
-      renderMetrics(exportResult.config, exportResult.layout, exportResult.features);
+      renderMetrics(exportResult.config, exportResult.layout, exportResult.features, exportResult.validation);
+      renderValidation(exportResult.validation);
       syncToolState();
       syncAddonButtons(exportResult.config);
       applySvgState();
@@ -369,11 +420,14 @@
 
       const preview3d = ensureThreePreview();
       if (preview3d) preview3d.render({ ...config, features });
-      downloadButton.disabled = false;
+      downloadButton.disabled = exportResult.validation.some((issue) => issue.severity === "error");
+      downloadButton.title = downloadButton.disabled ? "Resolve validation errors before downloading." : "";
     } catch (error) {
       errorEl.hidden = false;
       errorEl.textContent = error.message;
+      if (validationPanel) validationPanel.innerHTML = "";
       downloadButton.disabled = true;
+      downloadButton.title = "";
     }
   }
 

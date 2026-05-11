@@ -110,6 +110,7 @@
       dividerXCount,
       dividerYCount,
       dividerSlots,
+      requestedFingerSize,
       fingerSize,
       fingerRange: range,
       inputDims,
@@ -745,6 +746,159 @@
     return `<circle ${attrs.join(" ")}/>`;
   }
 
+  function validationIssue(severity, code, message, context = {}) {
+    return {
+      severity,
+      code,
+      message,
+      ...context
+    };
+  }
+
+  function featureDimensions(feature) {
+    if (feature.type === "drill-hole") {
+      return { width: feature.diameter, height: feature.diameter };
+    }
+
+    return { width: feature.width, height: feature.height };
+  }
+
+  function featureBounds(feature) {
+    const dimensions = featureDimensions(feature);
+    return {
+      x1: feature.x - dimensions.width / 2,
+      y1: feature.y - dimensions.height / 2,
+      x2: feature.x + dimensions.width / 2,
+      y2: feature.y + dimensions.height / 2
+    };
+  }
+
+  function boundsOverlap(a, b, clearance = 0) {
+    return (
+      a.x1 - clearance <= b.x2 &&
+      a.x2 + clearance >= b.x1 &&
+      a.y1 - clearance <= b.y2 &&
+      a.y2 + clearance >= b.y1
+    );
+  }
+
+  function validateDesign(config, layout, features = []) {
+    const issues = [];
+    const add = (severity, code, message, context) => {
+      issues.push(validationIssue(severity, code, message, context));
+    };
+    const minInsideSpan = Math.min(config.insideDims.width, config.insideDims.depth, config.insideDims.height);
+    const dividerCount = config.dividerXCount + config.dividerYCount;
+
+    if (config.kerf <= EPSILON) {
+      add("info", "kerf-zero", "Kerf is zero; cut a fit test before production.");
+    }
+
+    if (config.effectiveKerf > config.thickness * 0.25) {
+      add("warning", "kerf-high", "Effective kerf is high relative to material thickness.");
+    }
+
+    if (Math.abs(config.requestedFingerSize - config.fingerSize) > EPSILON) {
+      add(
+        "info",
+        "finger-size-clamped",
+        `Finger width was clamped to ${round(config.fingerSize)} mm for this box size.`
+      );
+    }
+
+    if (config.fingerSize <= config.thickness * 2.15) {
+      add("warning", "finger-size-small", "Finger width is near the minimum for this material thickness.");
+    }
+
+    if (minInsideSpan < config.thickness * 4) {
+      add("warning", "small-inside-span", "Smallest inside span is less than 4x material thickness.");
+    }
+
+    if (config.lidEnabled) {
+      if (config.lidClearance < Math.max(config.effectiveKerf, 0.15)) {
+        add("warning", "lid-clearance-tight", "Lid clearance is tighter than the kerf or assembly tolerance.");
+      }
+
+      if (config.lidLipHeight > config.insideDims.height * 0.55) {
+        add("warning", "lid-lip-tall", "Lid lip height is more than half of the inside box height.");
+      }
+    }
+
+    if (dividerCount > 0) {
+      const widthCell = config.dividerXCount > 0
+        ? config.insideDims.width / (config.dividerXCount + 1)
+        : Infinity;
+      const depthCell = config.dividerYCount > 0
+        ? config.insideDims.depth / (config.dividerYCount + 1)
+        : Infinity;
+      const minCell = Math.min(widthCell, depthCell);
+
+      if (minCell < config.thickness * 4) {
+        add("warning", "divider-cell-small", "Divider spacing creates compartments narrower than 4x material thickness.");
+      }
+
+      if (config.dividerSlots && config.insideDims.height < config.thickness * 5) {
+        add("warning", "divider-slot-short", "Divider slots are short relative to material thickness.");
+      }
+    }
+
+    const cutFeaturesByPanel = {};
+    features.forEach((feature) => {
+      (feature.warnings || []).forEach((message) => {
+        add("warning", "feature-warning", message, {
+          panel: feature.panel,
+          featureId: feature.id,
+          featureType: feature.type
+        });
+      });
+
+      if (
+        feature.operation === "cut" &&
+        feature.edgeClearance >= config.thickness &&
+        feature.edgeClearance < config.thickness * 2
+      ) {
+        add("warning", "feature-edge-web", "Cut feature leaves less than 2x material thickness to the panel edge.", {
+          panel: feature.panel,
+          featureId: feature.id,
+          featureType: feature.type
+        });
+      }
+
+      const dimensions = featureDimensions(feature);
+      if (feature.operation === "cut" && Math.min(dimensions.width, dimensions.height) <= Math.max(config.effectiveKerf * 3, 0.8)) {
+        add("warning", "feature-too-small", "Cut feature is very small for the current kerf.", {
+          panel: feature.panel,
+          featureId: feature.id,
+          featureType: feature.type
+        });
+      }
+
+      if (feature.operation === "cut") {
+        cutFeaturesByPanel[feature.panel] = cutFeaturesByPanel[feature.panel] || [];
+        cutFeaturesByPanel[feature.panel].push(feature);
+      }
+    });
+
+    Object.entries(cutFeaturesByPanel).forEach(([panelName, panelFeatures]) => {
+      const clearance = Math.max(config.effectiveKerf, 0.15);
+      for (let i = 0; i < panelFeatures.length; i += 1) {
+        for (let j = i + 1; j < panelFeatures.length; j += 1) {
+          const first = panelFeatures[i];
+          const second = panelFeatures[j];
+          if (!boundsOverlap(featureBounds(first), featureBounds(second), clearance)) continue;
+
+          add("warning", "feature-overlap", `Cut features on ${panelName} overlap or leave less than ${round(clearance)} mm between cuts.`, {
+            panel: panelName,
+            featureId: first.id,
+            relatedFeatureId: second.id
+          });
+        }
+      }
+    });
+
+    return issues;
+  }
+
   function buildSvg(rawConfig, options = {}) {
     const { config, panels } = buildPanels(rawConfig);
     const layout = layoutPanels(panels, config);
@@ -753,6 +907,7 @@
     const labelColor = options.labelColor || "#58616f";
     const lineWidth = Math.max(0.01, numberOr(options.lineWidth, 0.1));
     const features = normalizeFeatures(options.features || rawConfig.features, layout.panels, config);
+    const validation = validateDesign(config, layout, features);
     const featureByPanel = features.reduce((groups, feature) => {
       groups[feature.panel] = groups[feature.panel] || [];
       groups[feature.panel].push(feature);
@@ -796,7 +951,8 @@
         width: round(panel.baseWidth),
         height: round(panel.baseHeight)
       })),
-      features
+      features,
+      validation
     };
 
     const svg = [
@@ -814,7 +970,7 @@
       "</svg>"
     ].join("");
 
-    return { config, features, layout, svg };
+    return { config, features, layout, svg, validation };
   }
 
   function buildKerfTestSvg(rawConfig, options = {}) {
@@ -892,7 +1048,8 @@
     normalizeConfig,
     normalizeFeatures,
     oddSegmentCount,
-    pointsToPath
+    pointsToPath,
+    validateDesign
   };
 
   if (typeof module !== "undefined" && module.exports) {
